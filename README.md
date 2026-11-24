@@ -15,8 +15,8 @@ Também nasceu de uma vontade antiga: ter um Pomodoro próprio, sem depender de 
 - [x] Interface com abas: Pomodoro, Pausa Curta e Pausa Longa
 - [x] Botões Start, Skip e Reset
 - [x] Contador de pomodoros na tela
-- [ ] Contagem regressiva
-- [ ] Ciclo automático (4 pomodoros → pausa longa)
+- [x] Contagem regressiva
+- [x] Ciclo automático (4 pomodoros → pausa longa)
 - [ ] Som / notificação ao fim de cada etapa
 - [ ] Durações editáveis pela interface
 
