@@ -1,8 +1,8 @@
-# 🍅 Pomodoro Timer
+# Pomodoro Timer
 
 Timer Pomodoro em Python com interface gráfica feita em Tkinter.
 
-> ⚠️ **Projeto em desenvolvimento.** A interface já existe, mas a lógica do timer ainda está sendo implementada.
+> **Projeto em desenvolvimento.** A interface já existe, mas a lógica do timer ainda está sendo implementada.
 
 ## Sobre
 
