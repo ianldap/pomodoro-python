@@ -64,7 +64,7 @@ python -m pip install pyinstaller pillow
 Gere o `Pomodoro.exe` (fica em `dist/`):
 
 ```bash
-python -m PyInstaller --noconfirm --clean --onefile --windowed --name Pomodoro --icon pomodoro.ico --add-data "alarme.mp3;." --add-data "pomodoro.png;." pomodoro.py
+python -m PyInstaller --noconfirm --clean Pomodoro.spec
 ```
 
 ## Estrutura
@@ -74,6 +74,7 @@ pomodoro-python/
 ├── pomodoro.py        # código principal
 ├── pomodoro.png       # ícone da janela
 ├── pomodoro.ico       # ícone do executável
+├── Pomodoro.spec      # configuração do build
 ├── alarme.mp3         # som tocado ao fim de cada etapa
 ├── requirements.txt   # dependências do projeto
 └── README.md
