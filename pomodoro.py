@@ -1,23 +1,56 @@
-#Importando as bibliotecas necessárias para o funcionamento do programa
+"""Timer Pomodoro com interface gráfica em Tkinter."""
 
+import math
 import os
+import time
 import tkinter as tk
 from tkinter import ttk, PhotoImage
 
+# pygame é opcional: sem ele, o alarme usa o som do sistema.
+try:
+    import pygame
+except ImportError:
+    pygame = None
+
+# Durações em segundos.
 POMODORO = 25 * 60
 SHORT_BREAK = 5 * 60
 LONG_BREAK = 15 * 60
+
 FONT = "Arial"
+ALARM = os.path.join(os.path.dirname(os.path.abspath(__file__)), "alarme.mp3")
+POLL_INTERVAL_MS = 200  # frequência de atualização do relógio na tela
+
+
+def format_time(seconds):
+    """Converte segundos para o formato MM:SS."""
+    minutes, seconds = divmod(seconds, 60)
+    return f"{minutes:02d}:{seconds:02d}"
+
+
+def init_mixer():
+    """Inicializa o mixer do pygame sob demanda."""
+    if pygame is None:
+        return False
+    try:
+        if not pygame.mixer.get_init():
+            pygame.mixer.init()
+        return True
+    except pygame.error:
+        return False
+
 
 class PomodoroTimer:
-    
+    """Gerencia a interface e a contagem regressiva do timer."""
+
     def __init__(self):
-        
+        """Monta a interface e inicializa o estado do timer."""
+
         self.root = tk.Tk()
-        self.root.geometry("600x300")
+        self.root.geometry("700x300")
         self.root.title("Timer Pomodoro")
 
-        # Ícone: caminho relativo ao .py; sem o .png, abre sem ícone
+        # O ícone é opcional: se a imagem não existir, a janela abre sem ele.
         try:
             caminho = os.path.join(os.path.dirname(os.path.abspath(__file__)), "pomodoro.png")
             self.icon = PhotoImage(file=caminho)
@@ -25,120 +58,190 @@ class PomodoroTimer:
         except tk.TclError:
             pass
 
-        self.s = ttk.Style()
-        self.s.configure("TNotebook.Tab", font=(FONT, 16))
-        self.s.configure("TButton", font=(FONT, 16))
+        style = ttk.Style()
+        style.configure("TNotebook.Tab", font=(FONT, 16))
+        style.configure("TButton", font=(FONT, 16))
 
         self.tabs = ttk.Notebook(self.root)
         self.tabs.pack(fill="both", pady=10, expand=True)
 
-        self.tab1 = ttk.Frame(self.tabs, width=600, height=100)
-        self.tab2 = ttk.Frame(self.tabs, width=600, height=100)
-        self.tab3 = ttk.Frame(self.tabs, width=600, height=100)
+        tab1 = ttk.Frame(self.tabs, width=600, height=100)
+        tab2 = ttk.Frame(self.tabs, width=600, height=100)
+        tab3 = ttk.Frame(self.tabs, width=600, height=100)
 
-        self.pomodoro_timer_label = ttk.Label(self.tab1, text="25:00", font=(FONT, 48))
+        self.pomodoro_timer_label = ttk.Label(tab1, text=format_time(POMODORO), font=(FONT, 48))
         self.pomodoro_timer_label.pack(pady=20)
 
-        self.short_break_timer_label = ttk.Label(self.tab2, text="05:00", font=(FONT, 48))
+        self.short_break_timer_label = ttk.Label(tab2, text=format_time(SHORT_BREAK), font=(FONT, 48))
         self.short_break_timer_label.pack(pady=20)
 
-        self.long_break_timer_label = ttk.Label(self.tab3, text="15:00", font=(FONT, 48))
+        self.long_break_timer_label = ttk.Label(tab3, text=format_time(LONG_BREAK), font=(FONT, 48))
         self.long_break_timer_label.pack(pady=20)
 
-        self.tabs.add(self.tab1, text="Pomodoro")
-        self.tabs.add(self.tab2, text="Pausa Curta")
-        self.tabs.add(self.tab3, text="Pausa Longa")
+        self.tabs.add(tab1, text="Pomodoro")
+        self.tabs.add(tab2, text="Pausa Curta")
+        self.tabs.add(tab3, text="Pausa Longa")
 
-        self.grid_layout = ttk.Frame(self.root)
-        self.grid_layout.pack(pady=10)
+        controls = ttk.Frame(self.root)
+        controls.pack(pady=10)
 
-        self.start_button = ttk.Button(self.grid_layout, text="Start", command=self.start_timer)
-        self.start_button.grid(row=0, column=0)
+        start_button = ttk.Button(controls, text="Start", command=self.start_timer)
+        start_button.grid(row=0, column=0)
 
-        self.skip_button = ttk.Button(self.grid_layout, text="Skip", command=self.skip_clock)
-        self.skip_button.grid(row=0, column=1)
+        self.pause_button = ttk.Button(controls, text="Pause", command=self.pause_timer)
+        self.pause_button.grid(row=0, column=1)
 
-        self.reset_button = ttk.Button(self.grid_layout, text="Reset", command=self.reset_clock)
-        self.reset_button.grid(row=0, column=2)
+        skip_button = ttk.Button(controls, text="Skip", command=self.skip_clock)
+        skip_button.grid(row=0, column=2)
 
-        self.pomodoro_counter_label = ttk.Label(self.grid_layout, text="Pomodoros: 0", font=(FONT, 16))
+        self.pomodoro_counter_label = ttk.Label(controls, text="Pomodoros: 0", font=(FONT, 16))
         self.pomodoro_counter_label.grid(row=1, column=0, columnspan=3, pady=10)
 
-        # Estado do timer
-        self.labels = [self.pomodoro_timer_label, self.short_break_timer_label, self.long_break_timer_label]
-        self.durations = [POMODORO, SHORT_BREAK, LONG_BREAK]   # segundos
+        # Estado do timer.
+        self.labels = [
+            self.pomodoro_timer_label,
+            self.short_break_timer_label,
+            self.long_break_timer_label,
+        ]
+        self.durations = [POMODORO, SHORT_BREAK, LONG_BREAK]
         self.pomodoros = 0
-        self.phase = 0                 # 0 pomodoro, 1 pausa curta, 2 pausa longa
+        self.phase = 0  # 0 = pomodoro, 1 = pausa curta, 2 = pausa longa
         self.remaining = self.durations[0]
+        self.deadline = None
         self.running = False
+        self.paused = False
         self.after_id = None
 
-    def run(self):
-        self.root.mainloop()
-    
     def start_timer(self):
-        if self.running:                                  # evita duplo clique
+        """Inicia a contagem da aba atual ou retoma uma contagem pausada."""
+        if self.running:
             return
-        self.phase = self.tabs.index(self.tabs.select())  # lê a aba atual (0, 1, 2)
+        if self.paused:
+            self.resume_timer()
+            return
+
+        self.phase = self.tabs.index(self.tabs.select())
         self.remaining = self.durations[self.phase]
+        self.deadline = time.monotonic() + self.remaining
         self.running = True
         self.tick()
 
     def tick(self):
-        minutes, seconds = divmod(self.remaining, 60)
-        self.labels[self.phase].config(text=f"{minutes:02d}:{seconds:02d}")
+        """Atualiza o relógio na tela e agenda a próxima atualização."""
+        self.remaining = max(0, math.ceil(self.deadline - time.monotonic()))
+        self.labels[self.phase].config(text=format_time(self.remaining))
+
         if self.remaining > 0:
-            self.remaining -= 1
-            self.after_id = self.root.after(1000, self.tick)   # "me chame em 1 s"
+            self.after_id = self.root.after(POLL_INTERVAL_MS, self.tick)
         else:
             self.finish_phase()
 
     def finish_phase(self):
+        """Notifica o fim da etapa e inicia automaticamente a próxima."""
+        self.notify()
+
         if self.phase == 0:
             self.pomodoros += 1
             self.pomodoro_counter_label.config(text=f"Pomodoros: {self.pomodoros}")
-            self.phase = 2 if self.pomodoros % 4 == 0 else 1   # a cada 4: pausa longa
+            # A cada quatro pomodoros, a pausa é longa.
+            self.phase = 2 if self.pomodoros % 4 == 0 else 1
         else:
             self.phase = 0
-        self.tabs.select(self.phase)   # muda a aba
+
+        self.tabs.select(self.phase)
         self.running = False
         self.after_id = None
-        self.start_timer()             # começa a próxima fase sozinho
+        self.start_timer()
 
-    def reset_clock(self):
-        if self.after_id is not None:                 # há tick agendado?
-            self.root.after_cancel(self.after_id)     # cancela
-            self.after_id = None
-        self.running = False
-        self.pomodoros = 0                            # era self.pomodros (typo)
-        self.phase = 0
-        self.remaining = self.durations[0]
-        self.pomodoro_timer_label.config(text="25:00")
-        self.short_break_timer_label.config(text="05:00")
-        self.long_break_timer_label.config(text="15:00")
-        self.pomodoro_counter_label.config(text="Pomodoros: 0")
-        self.tabs.select(0)                           # volta p/ aba Pomodoro
-            
+    def pause_timer(self):
+        """Pausa a contagem ou retoma se já estiver pausada."""
+        if self.running:
+            if self.after_id is not None:
+                self.root.after_cancel(self.after_id)
+                self.after_id = None
+
+            self.remaining = max(0.0, self.deadline - time.monotonic())
+            self.running = False
+            self.paused = True
+            self.pause_button.config(text="Resume")
+        elif self.paused:
+            self.resume_timer()
+
+    def resume_timer(self):
+        """Continua a contagem de onde ela parou."""
+        self.paused = False
+        self.pause_button.config(text="Pause")
+        self.deadline = time.monotonic() + self.remaining
+        self.running = True
+        self.tick()
+
+    def notify(self):
+        """Exibe o aviso de fim de etapa e controla o alarme."""
+        self.play_alarm()
+        texto = ("Pomodoro concluído! Hora da pausa." if self.phase == 0
+                 else "Pausa terminou! Hora de focar.")
+
+        win = tk.Toplevel(self.root)
+        win.title("Pomodoro")
+        win.geometry("350x140")
+        win.transient(self.root)
+        ttk.Label(win, text=texto, font=(FONT, 14)).pack(pady=20)
+        ttk.Button(win, text="OK", command=win.destroy).pack()
+        win.lift()
+        win.focus_force()
+        win.grab_set()
+        self.root.wait_window(win)
+        self.stop_alarm()
+
+    def play_alarm(self):
+        """Toca o alarme em repetição ou, em caso de falha, o som do sistema."""
+        if init_mixer() and os.path.exists(ALARM):
+            try:
+                pygame.mixer.music.load(ALARM)
+                pygame.mixer.music.set_volume(1.0)
+                pygame.mixer.music.play(loops=-1)
+                return
+            except pygame.error:
+                pass
+
+        try:
+            import winsound
+            winsound.MessageBeep()
+        except Exception:
+            self.root.bell()
+
+    def stop_alarm(self):
+        """Interrompe o alarme."""
+        if pygame is not None and pygame.mixer.get_init():
+            pygame.mixer.music.stop()
+
     def skip_clock(self):
-        was_running = self.running                    # lembra se estava contando
+        """Avança para a próxima etapa sem esperar o fim da contagem."""
+        self.paused = False
+        self.pause_button.config(text="Pause")
+        was_running = self.running
+
         if self.after_id is not None:
-            self.root.after_cancel(self.after_id)     # cancela o tick pendente
+            self.root.after_cancel(self.after_id)
             self.after_id = None
         self.running = False
 
-        # fase atual: se contando, self.phase; se parado, a aba aberta
         current = self.phase if was_running else self.tabs.index(self.tabs.select())
 
-        # restaura o relógio da fase pulada
-        minutes, seconds = divmod(self.durations[current], 60)
-        self.labels[current].config(text=f"{minutes:02d}:{seconds:02d}")
+        # Restaura o relógio da etapa que foi pulada.
+        self.labels[current].config(text=format_time(self.durations[current]))
 
-        # próxima fase: pomodoro -> pausa curta; qualquer pausa -> pomodoro
+        # Pomodoro avança para pausa curta; pausas voltam para o pomodoro.
         self.phase = 1 if current == 0 else 0
         self.tabs.select(self.phase)
 
-        if was_running:                               # só continua sozinho se já contava
+        if was_running:
             self.start_timer()
         
+    def run(self):
+        """Inicia o loop principal da interface."""
+        self.root.mainloop()
+
+
 if __name__ == "__main__":
     PomodoroTimer().run()
