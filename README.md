@@ -28,7 +28,13 @@ Também nasceu de uma vontade antiga: ter um Pomodoro próprio, sem depender de 
 
 As durações são definidas como constantes no topo de `pomodoro.py`.
 
-## Como rodar
+## Baixar o executável
+
+Na aba [Releases](https://github.com/ianldap/pomodoro-python/releases), baixe `Pomodoro.exe` e execute. Não é necessário ter Python instalado.
+
+> O Windows pode exibir um aviso do SmartScreen por o executável não ter assinatura digital. Clique em "Mais informações" → "Executar assim mesmo".
+
+## Rodar pelo código-fonte
 
 Requer Python 3 com Tkinter (já vem incluso no Python para Windows e macOS).
 
@@ -47,12 +53,27 @@ python -m pip install -r requirements.txt
 python pomodoro.py
 ```
 
+## Gerar o executável
+
+Instale as ferramentas de build:
+
+```bash
+python -m pip install pyinstaller pillow
+```
+
+Gere o `Pomodoro.exe` (fica em `dist/`):
+
+```bash
+python -m PyInstaller --noconfirm --clean --onefile --windowed --name Pomodoro --icon pomodoro.ico --add-data "alarme.mp3;." --add-data "pomodoro.png;." pomodoro.py
+```
+
 ## Estrutura
 
 ```
 pomodoro-python/
 ├── pomodoro.py        # código principal
 ├── pomodoro.png       # ícone da janela
+├── pomodoro.ico       # ícone do executável
 ├── alarme.mp3         # som tocado ao fim de cada etapa
 ├── requirements.txt   # dependências do projeto
 └── README.md

@@ -2,6 +2,7 @@
 
 import math
 import os
+import sys
 import time
 import tkinter as tk
 from tkinter import ttk, PhotoImage
@@ -18,8 +19,16 @@ SHORT_BREAK = 5 * 60
 LONG_BREAK = 15 * 60
 
 FONT = "Arial"
-ALARM = os.path.join(os.path.dirname(os.path.abspath(__file__)), "alarme.mp3")
 POLL_INTERVAL_MS = 200  # frequência de atualização do relógio na tela
+
+
+def resource_path(name):
+    """Retorna o caminho de um arquivo de apoio, inclusive dentro do .exe."""
+    base = getattr(sys, "_MEIPASS", os.path.dirname(os.path.abspath(__file__)))
+    return os.path.join(base, name)
+
+
+ALARM = resource_path("alarme.mp3")
 
 
 def format_time(seconds):
@@ -52,7 +61,7 @@ class PomodoroTimer:
 
         # O ícone é opcional: se a imagem não existir, a janela abre sem ele.
         try:
-            caminho = os.path.join(os.path.dirname(os.path.abspath(__file__)), "pomodoro.png")
+            caminho = resource_path("pomodoro.png")
             self.icon = PhotoImage(file=caminho)
             self.root.iconphoto(True, self.icon)
         except tk.TclError:
